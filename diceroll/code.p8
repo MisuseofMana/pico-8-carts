@@ -5,13 +5,35 @@ __lua__
 --by jake, kevin, & sean
 
 function _init()
-	player = {x=0, y=0}
+  roll = 1
+  rolling = false
+  roll_timer = 0
+  roll_duration = 40
 end
 
 function _update()
+  if btnp(4) and not rolling then
+    rolling = true
+    roll_timer = 0
+  end
+
+  if rolling then
+    roll_timer += 1
+    roll = flr(rnd(6)) + 1  -- flash random face every frame
+
+    if roll_timer >= roll_duration then
+      rolling = false
+      roll = flr(rnd(6)) + 1  -- final settled value
+    end
+  end
 end
 
 function _draw()
+  cls()
+  spr(roll, 64, 64)
+  for i=0,5 do
+    if btn(i) then print(i) end
+  end
 end
 __gfx__
 00000000777777777777777777777777777777777777777777777777000000000000000000000000000000000000000000000000000000000000000000000000
