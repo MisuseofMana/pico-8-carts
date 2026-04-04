@@ -1,88 +1,130 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
---diceroll code
+--blood runs deep
 --by jake, kevin, & sean
 
 function _init()
-  num_dice = 2  -- change this to roll more
-  rolls = {}    -- table to hold each die result
-  for i = 1, num_dice do
-    rolls[i] = 1
-  end
-  rolling = false
-  roll_timer = 0
-  snake_eyes = false
-  roll_duration = 60
-  ox = {}
-  oy = {}
-  for i = 1, num_dice do
-    ox[i] = 0
-    oy[i] = 0
-  end
+ num_dice = 2  -- change this to roll more
+ rolls = {}    -- table to hold each die result
+ for i = 1, num_dice do
+  rolls[i] = 1
+ end
+ rolling = false
+ roll_timer = 0
+ snake_eyes = false
+ roll_duration = 60
+ ox = {}
+ oy = {}
+ for i = 1, num_dice do
+  ox[i] = 0
+  oy[i] = 0
+ end
+ 
+ --game state
+ g={
+ 	scene=0,
+ 	update=update_menu,
+ 	draw=draw_menu
+ }
 end
 
 function _update()
-  if btnp(4) and not rolling then
-    rolling = true
-    roll_timer = 0
-    sfx(0)
-  end
-
-  if rolling then
-    roll_timer += 1
-
-    local flash_rate = 4
-    if roll_timer % flash_rate == 0 then
-      for i = 1, num_dice do
-        rolls[i] = flr(rnd(6)) + 1
-        ox[i] = flr(rnd(5)) - 2
-        oy[i] = flr(rnd(5)) - 2
-      end
-    end
-
-			if roll_timer >= roll_duration then
-			  rolling = false
-			  snake_eyes = true
-			  for i = 1, num_dice do
-			    rolls[i] = flr(rnd(6)) + 1
-			    ox[i] = 0
-			    oy[i] = 0
-			  end
-			  -- check after final rolls are set
-			  snake_eyes = true
-			  for i = 1, num_dice do
-			    if rolls[i] != 1 then
-			      snake_eyes = false
-			    end
-			  end
-			end
-  end
+	g.update()
 end
 
-
-
 function _draw()
-  cls()
-  -- spread dice across screen, 20px apart
-  for i = 1, num_dice do
-    local x = 54 + (i - 1) * 20
-    local fx = rolling and (rnd(2) > 1) or false
-    local fy = rolling and (rnd(2) > 1) or false
-    spr(rolls[i], x + ox[i], 64 + oy[i], 1, 1, fx, fy)
+ cls()
+ g.draw()
+end
+-->8
+--menu scene functions
+function update_menu()
+ if btnp(❎) then
+ 	next_scene()
+ end
+end
+
+function draw_menu()
+	map(112,0,0,0,16,16)
+	rectfill(31,79,96,95,0)
+	rect(31,79,96,95,8)
+	print("press ❎",49,85,8)
+end
+
+-->8
+--dice scene functions
+function update_dice()
+ if btnp(4) and not rolling then
+ 	rolling = true
+ 	roll_timer = 0
+ 	sfx(0)
+ end
+
+ if rolling then
+  roll_timer += 1
+  
+  local flash_rate = 4
+  if roll_timer % flash_rate == 0 then
+   for i = 1, num_dice do
+    rolls[i] = flr(rnd(6)) + 1
+    ox[i] = flr(rnd(5)) - 2
+    oy[i] = flr(rnd(5)) - 2
+   end
   end
 
-  if not rolling then
-	  local sum = 0
-	  for i = 1, num_dice do
-	    sum += rolls[i]
-	  end
-	  print("total: "..sum, 56, 80, 7)
+		if roll_timer >= roll_duration then
+			rolling = false
+			snake_eyes = true
+			for i = 1, num_dice do
+			 rolls[i] = flr(rnd(6)) + 1
+			 ox[i] = 0
+			 oy[i] = 0
+			end
+		 -- check after final rolls are set
+			snake_eyes = true
+			for i = 1, num_dice do
+			 if rolls[i] != 1 then
+			  snake_eyes = false
+			 end
+			end
+		end
+ end
+end
+
+function draw_dice()
+ -- spread dice across screen, 20px apart
+ for i = 1, num_dice do
+  local x = 54 + (i - 1) * 20
+  local fx = rolling and (rnd(2) > 1) or false
+  local fy = rolling and (rnd(2) > 1) or false
+  spr(rolls[i], x + ox[i], 64 + oy[i], 1, 1, fx, fy)
+ end
+
+ if not rolling then
+	 local sum = 0
+	 for i = 1, num_dice do
+	  sum += rolls[i]
+	 end
+	 print("total: "..sum, 56, 80, 7)
 	
-	  if snake_eyes then
-	    print("snake eyes, bitch!", 46, 90, 8)  -- color 8 = red
-	  end
+	 if snake_eyes then
+	  print("snake eyes, bitch!", 46, 90, 8)  -- color 8 = red
+	 end
 	end
+end
+-->8
+--utility functions
+function next_scene()
+ --advance game scene int
+ g.scene+=1
+ --update order list
+ order={
+ 	{update_menu, draw_menu},
+ 	{update_dice, draw_dice}
+ }
+ g.update=order[g.scene][1]
+ g.draw=order[g.scene][2]
 end
 __gfx__
 00000000777777777777777777777777777777777777777777777777cc0000cc0000000000000000000000000000000000000000000000000000000000000000
