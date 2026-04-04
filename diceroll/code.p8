@@ -23,7 +23,7 @@ function _init()
  
  --game state
  g={
- 	scene=0,
+ 	scene=1,
  	update=update_menu,
  	draw=draw_menu
  }
