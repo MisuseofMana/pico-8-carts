@@ -23,8 +23,6 @@ function _init()
 	draw_scene=draw_menu
 	
 	reading=false
-	win=false
-	lose=false
 	showhint=true
 	why=""
 	whyt={}
@@ -65,6 +63,7 @@ function _init()
 	lmap=leveldata
 	
 	l={}
+	resetl={}
 	
 	-- emote matches
 	matches={}
@@ -145,7 +144,7 @@ function update_level()
 	if reading then
 		tb_update()
 	else
-		control()
+		handle_input()
 	end
 end
 
@@ -159,7 +158,7 @@ end
 
 function push_pull(x,y,inp)
 	--rel to new pos coordinate
-	local r=rel_crd(x,y,inp)
+	local r=rel_crds(x,y,inp)
 	
 	--from map tile data
 	local om=map_crd(x,y)
@@ -207,38 +206,58 @@ function push_pull(x,y,inp)
 	end
 end
 
+function try_move_hand(inp)
+	local nc=rel_crds(h.x,h.y,inp)
+	local mt=mtile_from_px(nc)
+	if can_move_to(nc,inp) then
+		move_hand_to(nc)
+	end
+end
+
+function move_hand_to(nc)
+	h.x=nc.x
+	h.y=nc.y
+	
+	if severed then
+		record_severed(h,inp)
+	else
+		record(h,inp)
+	end
+	
+	if h.grab then
+		--do grab logic
+	end
+	
+	--move hand
+	--genertate new arm
+	--check if going backwards
+	--drag held grabables
+	--deliver grabables
+	--push pushables
+	--detect triggers
+end
+
+function record_severed(h,inp)
+	add(a,{
+		inp=inp,
+		x=h.x,
+		y=h.y,
+	})
+	deli(a,1)
+end
+
+function record(h,inp)
+	add(a,{
+		inp=inp,
+		x=h.x,
+		y=h.y,
+	})
+	
+	chk_plates()
+end
+
 function chk_overlap(inp)
-	local opps={
-		["➡️"]="⬅️",
-		["⬅️"]="➡️",
-		["⬆️"]="⬇️",
-		["⬇️"]="⬆️"
-	}
-	
-	local hsp={
-		["➡️"]=10,
-		["⬅️"]=10,
-		["⬆️"]=26,
-		["⬇️"]=26
-	}
-	
-	local nh=rel_crd(h.x,h.y,inp)
-	local p_tile=map_crd(nh[1],nh[2])
-	local h_ovrlp=map_crd(h.x,h.y)
-	
-	local tile=mget(unpack(p_tile))
-	local flag=fget(tile)
-	local valid=true
-	local undo_move=false
-	
-	local has_arm=tile_has_arm(nh[1],nh[2])
-	
-	local h_ovr_spr=mget(unpack(h_ovrlp))
-	local h_flg=fget(h_ovr_spr)
-	
-	valid=is_valid_input(flag)
-	
-	-- arm
+	--arm
 	if has_arm then
 		local okay=opps[inp]==a[#a].inp
 		if okay then
@@ -249,14 +268,6 @@ function chk_overlap(inp)
 	 end
 	end
 	
-	--pushable
-	if flag==8 and not has_arm then
-		valid=valid_push(nh[1],nh[2],inp)
-		if valid then
-			push_pull(nh[1],nh[2],inp)
-		end
-	end
-	
 	--if flag under h is grabbable
 	if h_flg==2 then
 		if h.grab and valid then
@@ -265,12 +276,6 @@ function chk_overlap(inp)
 				sfx(rnd({10,11,12}))
 				add(p.emotes, h_ovr_spr)
 				mset(h_ovrlp[1],h_ovrlp[2],ptile_spr(h_ovrlp[1],h_ovrlp[2]))
-			elseif flag==2 or p_origin(nh) then
-				valid=false
-			elseif flag==16 then
-				valid=false
-			else
-				push_pull(h.x,h.y,inp)
 			end
 			
 			if #l.mrgt then
@@ -283,11 +288,6 @@ function chk_overlap(inp)
 	
 	if p_origin(nh) then
 		p.severed=false
-	end
-	
-	--if target is active trap
-	if tile==55 then
-		valid=false
 	end
 	
 	if valid and lose==false then
@@ -312,7 +312,6 @@ function chk_overlap(inp)
 		else
 		sfx(rnd({1,2,3,4}))
 		record(inp,h.x,h.y,hsp[inp])
-		
 		h.x+=inpmap[inp][1]*tsize
 		h.y+=inpmap[inp][2]*tsize
 		h.fh=inp=="⬅️"
@@ -330,51 +329,16 @@ function chk_overlap(inp)
 	end
 end
 
-function record(inp,x,y,hsp)	
-	--record a data unsevered
-	local tmc=map_crd(x,y)
-	local orsp=mget(tmc[1],tmc[2])
-	
-	add(a,{
-		inp=inp,
-		x=x,
-		y=y,
-		sp=nil,
-		orsp=orsp,
-		fh=inp=="⬅️",
-		fv=inp=="⬇️",
-		hsp=hsp
-	})
-		
-	--retroactively add sp
-	if #a>1 then
-		local pair=dir_pair(a[#a-1].inp,a[#a].inp)
-		a[#a].sp=rnd(arm_sets[pair])
+function handle_input()
+	if btnp() and l.lose then
+		reset_lvl()
+	 return
 	end
 	
-	chk_plates()
-end
-
-function control()
-	if win then
-		if btnp(🅾️) then
-			g.l+=1
-			init_lvl(g.l)
-		end
+	if btnp() and l.win then
+		g.l+=1
+		init_lvl(g.l)
 		return
-	end
-	
-	if btnp(➡️) then
-	chk_overlap("➡️")
-	end
-	if btnp(⬅️) then
-		chk_overlap("⬅️")
-	end
-	if btnp(⬆️) then
-		chk_overlap("⬆️")
-	end
-	if btnp(⬇️) then
-		chk_overlap("⬇️")
 	end
 	
 	--handle grab
@@ -384,20 +348,15 @@ function control()
 		h.grab=false
 	end
 	
-	if btnp(🅾️) then
-		showhint=true
-		clr_tbl(a)
-		h={
-			x=p.x,
-			y=p.y,
-			sp=4,
-			fh=false,
-			fv=false,
-			grab=false
-		}
-		win=false
-		lose=false
-		init_lvl(g.l)
+	local inp=nil
+	
+	if (btnp(⬅️)) inp=⬅️
+	if (btnp(➡️)) inp=➡️
+	if (btnp(⬆️)) inp=⬆️
+	if (btnp(⬇️)) inp=⬇️
+	
+	if inp!=nil then
+		try_move_hand(inp)
 	end
 end
 -->8
@@ -442,6 +401,9 @@ function draw_player()
 	--arm	
 	for i, v in ipairs(a) do
 		if i>1 then
+			local pinp=a[i-1].inp
+			local ninp=v.inp
+			local armsp=get_arm_sp(pinp,ninp)
 			spr(v.sp,v.x,v.y,1,1,p.fh,p.fv)
 		end
 	end
@@ -491,7 +453,7 @@ function draw_player()
 	end
 	
 	if win then
-		local t="press 🅾️ to continue."
+		local t="press 🅾️/z to continue."
 		print(t,hc(t,2),20,11)
 	end
 	
@@ -610,8 +572,20 @@ function adv_scene()
 	draw_scene=drw_order[g.scene]
 end
 
-function dir_pair(one,two)
-	return tostr(one..two)
+function reset_lvl()
+	showhint=true
+	clr_tbl(a)
+	h={
+		x=p.x,
+		y=p.y,
+		sp=4,
+		fh=false,
+		fv=false,
+		grab=false
+	}
+	win=false
+	lose=false
+	init_lvl(g.l)
 end
 
 function save_lvl()
@@ -770,6 +744,9 @@ function init_lvl(li)
 	--set level to mapped level
 	l=lmap[li]
 	
+	l.win=false
+	l.lose=false
+	
 	--setup merge buckets
 	l.mrgt={}
 	l.spnt={}
@@ -887,14 +864,6 @@ function push_valid(x,y,dir)
 	y=y+v[2]*8
 end
 
---relative coords frm input
-function rel_crd(x,y,dir)
-	return {
-		x+(inpmap[dir][1]*8),
-		y+(inpmap[dir][2]*8)
-	}
-end
-
 --expects map coords
 function m_to_px(x,y)
 	local crds={x=0,y=0}
@@ -903,14 +872,8 @@ function m_to_px(x,y)
 	return crds
 end
 
-function map_crd(x,y)
-	local mx=((x-l.rm[3])/8)+l.rm[1]
-	local my=((y-l.rm[4])/8)+l.rm[2]
-	return {mx,my}
-end
-
 function valid_push(x,y,inp)
-	local n_pos=rel_crd(x,y,inp)
+	local n_pos=rel_crds(x,y,inp)
 	local mp_pos=map_crd(n_pos[1],n_pos[2])
 	local mt=mget(mp_pos[1],mp_pos[2])
 	local flg=fget(mt)
@@ -947,6 +910,31 @@ function ptile_spr(tx,ty)
 		end
 	end
 	return nil
+end
+
+function get_arm_spr(old,new)
+	local horz={18,19,20}
+	local vert={34,35,36}
+	local ru_dl={33}
+	local lu_dr={32}
+	local ur_ld={16}
+	local rd_ul={17}
+	
+	local lookup={
+		"00"=horz,
+		"11"=horz,
+		"22"=vert,
+		"33"=vert,
+		"12"=ru_dl,
+		"30"=ru_dl,
+		"02"=lu_dr,
+		"31"=lu_dr,
+		"21"=ur_ld,
+		"03"=ur_ld,
+		"13"=rd_ul,
+		"20"=rd_ul
+	}
+	
 end
 -->8
 --lookups
@@ -1157,59 +1145,87 @@ leveldata={
 		},]]
 	}
 -->8
---movement validation
-function is_valid_input(f)
-	local v=false
-	obst=is_obstacle(f)
-	grab=is_grabable(f)
-	npc=is_npc(f)
-	push=is_pushable(f)
-	door=is_door(f)
+--movement handling
+--accepts destination px coords
+function can_move_to(nc,inp)
+	local mt=mtile_from_px(nc)
+	local f=mt.mf
 	
-	if (obst) v=false
-	if (grab) v=true
-	if (npc) v=true
-	if (push) v=is_pushable()
-	if (door) v=false
+	--[[can never move
+	into obstacles or doors]]
+	if f==1 or f==16 then
+		return false
+	end
 	
+	--[[can always move into
+	empty tiles,grabables,
+	and npcs]]
+	if f==0 or f==2 or f==4 then
+	 return true
+	end
+	
+	--[[can conditionally push
+	obstacles]]
+	if f==8 then
+		can_push_to(c,inp)
+	end
+end
+
+function glyphmap(g)
+	local v={x=0,y=0}
+	if (g==⬅️) v={x=-1,y=0}
+	if (g==➡️) v={x=1,y=0}
+	if (g==⬆️) v={x=0,y=-1}
+	if (g==⬇️) v={x=0,y=1}
 	return v
 end
 
-function is_obstacle(f)
-	return f==1
+--rltve coords by inp dirctn
+function rel_crds(x,y,inp)
+	local v=glyphmap(inp)
+	return {
+		x=x+(v.x*8),
+		y=y+(v.y*8)
+	}
 end
 
-function is_grabable(f)
-	return f==2
+function map_crd(x,y)
+	local xloc=l.rm[1]
+	local yloc=l.rm[2]
+	local xoffst=l.rm[3]
+	local yoffst=l.rm[4]
+	
+	local mx=((x-xoffst)/8)+xloc
+	local my=((y-l.rm[4])/8)+yloc
+	return {tx=mx,ty=my}
 end
 
-function is_npc(f)
-	return f==4
-end
-
-function is_pushable(f)
-	return f==8
-end
-
-function is_door(f)
-	return flag==16
+function mtile_from_px(c)
+	local m=map_crd(c.x,c.y)
+	local ms=mget(m.tx,m.ty)
+	return {
+		mx=m.tx,
+		my=m.ty,
+		ms=ms,
+		mf=fget(ms)
+	}
 end
 __gfx__
 0000000000666000000dd0000776770000bbbb000077770007777700ddd00dd000cc00001111111000000000000000000aaaaa00099999000fffff000eeeee00
-000000000666660000dddd00766666700bbbbbb007777770777777700ddddd000cccc000111111100000000000000000aaaaaaa099191990fffffff0eeeeeee0
-0070070066161660ddddddd0658585604b9b9b3007c7c77078778770d8dd8dd0cccccc001a1111106666660066666000a1aaa1a099191990f1fff1f0e1eee1e0
-0007700066616660051b15b0766666700b3b3bb00767677077777700ddddddd06585f600a9aaaaa06606666066d666009aaaaa90f99999f0efffffe088eee880
-000770006666666005bbb550077676000bb3bb40077c777067676000d72272d06f8f6c001a11a1a066606660666d6600aa1a1aa091999190f11111f0881e1880
-007007006066606000ddddd076667760bbb3bbb0777c77700655567007dd7d00c666ccc0111111106666066066666000aa111aa099111990ff111ff0eee1eee0
-00000000006060000bdddbd0677767703bbbb3b07777777067666760ddddddd0fc6cfcc01111111000666000000000000aaaaa00099999000fffff000eeeee00
+000000000666660000dddd00766666700bbbbbb007777770777777700ddddd000cccc000111111100666600006666000aaaaaaa099191990fffffff0eeeeeee0
+0070070066161660ddddddd0658585604b9b9b3007c7c77078778770d8dd8dd0cccccc001a1111106666660066666600a1aaa1a099191990f1fff1f0e1eee1e0
+0007700066616660051b15b0766666700b3b3bb00767677077777700ddddddd06585f600a9aaaaa066606600666d66009aaaaa90f99999f0efffffe088eee880
+000770006666666005bbb550077676000bb3bb40077c777067676000d72272d06f8f6c001a11a1a06600000066dd6600aa1a1aa091999190f11111f0881e1880
+007007006066606000ddddd076667760bbb3bbb0777c77700655567007dd7d00c666ccc0111111106666600066666000aa111aa099111990ff111ff0eee1eee0
+00000000006060000bdddbd0677767703bbbb3b07777777067666760ddddddd0fc6cfcc01111111006660000066600000aaaaa00099999000fffff000eeeee00
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000001111111011111110111111101111111004444400000000000000000004444400033333000222220005555500
-0000000000000000006666000000000000000000111111101ccccc10111111101111111044444440000666000000000044444440111111102222222055555550
-000066666666000066666666666006666666666611111110cc777cc0111111101111111055555550006666000006600041141140316316302112112051151150
-0006666666666000666666666666666666666666ccccccccc7ccc7cc111ccccccccc111044444a40006660600066660041441440333333302212212055555550
-006666666666660066666666666666666666666611111110cc777cc0111c1110111c11104444a4a0006606600066d60044444440333331302222222055555550
-0066666666666600666006666666666666666666111111101ccccc10111c1110111c111055555a5000606660006d660041777140331113302111112051616150
-00666660066666000000000000666600000000001111111011111110111c1110111c11104444444000666600006666000444440003333300022ee20005555500
+0000000000000000006666000000000000000000111111101ccccc10111111101111111044444440000000000000000044444440111111102222222055555550
+000066666666000066666666666006666666666611111110cc777cc0111111101111111055555550006600000066600041141140316316302112112051151150
+0006666666666000666666666666666666666666ccccccccc7ccc7cc111ccccccccc111044444a40066606000666660041441440333333302212212055555550
+006666666666660066666666666666666666666611111110cc777cc0111c1110111c11104444a4a006600660066dd66044444440333331302222222055555550
+0066666666666600666006666666666666666666111111101ccccc10111c1110111c111055555a50066606600666d66041777140331113302111112051616150
+00666660066666000000000000666600000000001111111011111110111c1110111c11104444444006666660066666600444440003333300022ee20005555500
 00666600006666000000000000000000000000000000000000000000000c0000000c000000000000006666000066660000000000000000000000000000000000
 00666600006666000066660000666600006666001111111011111110111c1110111c1110dddddddddddddddd444444200ddddd000ccccc00099999000bbbbb00
 00666660066666000066660000666600006666001111111011111110111c1110111c1110dddddddddddddddd42224420ddddddd0ccccccc099999990bbbbbbb0
