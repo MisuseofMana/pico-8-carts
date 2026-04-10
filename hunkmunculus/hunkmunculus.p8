@@ -158,20 +158,23 @@ function update_end()
 	end
 end
 
+--validate input for movement
 function try_move_hand(inp)
-	--gate for hand movement
 	local hc={x=h.x,y=h.y}
 	local nc=rel_crds(hc,inp)
 	local mt=mtile_from_px(nc)
 	
 	if can_move_to(nc,inp) then
+	why="can`"
 		if going_backwrd(nc) then
-			if (p.severed) return
-			undo_move()
+			if not p.severed then
+			 undo_move()
+			end
 		end
 		
-		-- handles pushing and grabbing
+		--handle move, push, & grab
 		move_hand_to(nc,inp)
+		chk_for_push(nc,inp)
 	end
 	
 	if plts_pressed() then
@@ -181,8 +184,18 @@ function try_move_hand(inp)
 	end
 end
 
-function push_tile(c,inp)
-	return
+function chk_for_push(c,inp)
+	local dest=rel_crds(c,inp)
+		for o in all(l.sprites) do
+		if crds_match(o,c) then
+			o.x=dest.x
+			o.y=dest.y
+		end
+	end
+end
+
+function crds_match(a,b)
+	return a.x==b.x and a.y==b.y
 end
 
 function move_hand_to(nc,inp)
@@ -206,8 +219,6 @@ function move_hand_to(nc,inp)
 		--drag emotion to new location
 		--check for delivery
 	end
-	
-	push_tile(nc,inp)
 end
 
 function record_severed(h,ninp)
@@ -508,18 +519,6 @@ function tb_draw()
 end
 -->8
 --utilities
-function p_stl(stl)
-	for k,v in pairs(stl) do
-		local str=tostr(k) ..": "
-			printh(str, "data.txt")
-		for ik, iv in pairs(v) do
-			local istr=tostr(ik)..": "..tostr(iv)
-			printh(istr, "data.txt")
-		end
-		printh(" ", "data.txt")
-	end
-end
-	
 function adv_scene()
 	g.scene+=1
 	update_scene=up_order[g.scene]
@@ -1069,21 +1068,8 @@ function can_move_to(nc,inp)
 	--check nc has lvl sprite
 	if chk_for_lsp(nc) then
 		if valid_push_dir(nc,inp) then
-			local dest=rel_crds(nc,inp)
-			for o in all(l.sprites) do
-				if o.x==nc.x and o.y==nc.y then
-					o.x=dest.x
-					o.y=dest.y
-				end
-			end
 			return true
 		end
-	end
-	
-	
-	--can move onto empty tiles
-	if chk_ft(f,{"mpt"}) then
-		return true
 	end
 end
 
@@ -1119,28 +1105,27 @@ end
 
 function valid_push_dir(c,inp)
 	local dest=rel_crds(c,inp)
-	--cant push if into arm
-	if (crd_has_arm(dest)) return false
-	--cant push if into sprite
-	if (chk_for_lsp(dest)) return false
+	local tile=mtile_from_px(dest)
+	local f=tile.mf
 	
-	--level sprite flags
+	--[[cant push if into arm
+	or item sprite or certain
+	flags]]
+	if crd_has_arm(dest) or
+	chk_for_lsp(dest) then
+	 return false
+	end
+	
 	local nsf=lsp_flag(dest)
-	local osf=lsp_flag(c)
-	
-	--can push to empty tile
-	if (nsf==nil) return true
-	
-	local nss=lsp_sprite(dest)
 	local oss=lsp_sprite(c)
 	
-	local psh_f={
+	local goodtiles={
 		"mpt","plt",
 		"dtp","rne"
 	}
 	
 	if oss==9 then
-		add(psh_f, "dor")
+		add(goodtiles, "dor")
 	end
 	
 	return chk_ft(nsf,psh_f)
