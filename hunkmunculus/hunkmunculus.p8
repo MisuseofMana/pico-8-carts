@@ -61,7 +61,7 @@ function _init()
 		scene=1,
 	}
 	
-	lmap=leveldata
+	lmap=leveldata()
 	
 	l={}
 	resetl={}
@@ -99,7 +99,7 @@ function _init()
 	}
 	
 	save_lvl()
-	init_lvl(9)
+	init_lvl(5)
 	music(0)
 end
 
@@ -143,12 +143,12 @@ function update_story()
 end
 
 function update_level()
-	g.ofst+=0.1
-	if (g.ofst>#l.emotes+1) g.ofst=0.1
 	music(-1)
 	if reading then
 		tb_update()
 	else
+		g.ofst+=0.1
+		if (g.ofst>#l.emotes+1) g.ofst=0.1
 		handle_input()
 	end
 end
@@ -331,14 +331,19 @@ function draw_story()
 end
 
 function draw_level()
-	map(unpack(l.rm))
-	draw_emotes()
-	draw_items()
-	draw_player()
-	draw_hand()
-	draw_ui()
-	if #a<1 then
-		draw_hints()
+	if l.tp=="cutscene" then
+		tb_draw()
+		print('next ➡️', 100,100,13)
+	else
+		map(unpack(l.rm))
+		draw_emotes()
+		draw_items()
+		draw_player()
+		draw_hand()
+		draw_ui()
+		if #a<1 then
+			draw_hints()
+		end
 	end
 end
 
@@ -492,10 +497,10 @@ function tb_init(voice,string,draws)
   i=1,
   cur=0,
   char=0,
-  x=0, -- x coordinate
-  y=106, -- y coordginate
-  w=127, -- text box width
-  h=21, -- text box height
+  x=0, --x coordinate
+  y=106, --y coordginate
+  w=127, --text box width
+  h=21, --text box height
  }
 end
 
@@ -553,25 +558,8 @@ function adv_scene()
 	draw_scene=drw_order[g.scene]
 end
 
-function reset_lvl()
-	clr_tbl(a)
-	h={
-		x=p.x,
-		y=p.y,
-		sp=4,
-		fh=false,
-		fv=false,
-		grab=false
-	}
-	init_lvl(g.l)
-end
-
 function save_lvl()
 	memcpy(save_dest,msrc,mlgth)
-end
-
-function p_origin(t)
-	return t[1]==p.x and t[2]==p.y
 end
 
 function chk_for_merge()
@@ -580,10 +568,6 @@ function chk_for_merge()
 	local mt2=l.mrgt[2]
 	--result merge position
 	local rmp=l.mrga
-	
-	if #l.mrga<=0 then
-		return
-	end
 	
 	--if merge location has emote
 	if crd_has_emote(rmp) then
@@ -610,8 +594,6 @@ function chk_for_merge()
 				delete_emote_at(v)
 			end
 			
-			why=newsp
-			
 			add(l.emotes, {
 				x=rmp.x,
 				y=rmp.y,
@@ -628,9 +610,6 @@ function chk_for_merge()
 				f=4
 			})
 		end
-		
-		--remove all consumed sprites
-		--generate new sprite at altar
 	end
 end
 
@@ -750,21 +729,6 @@ arm_sets={
 	["⬆️➡️"]={16}
 }
 
---offset by inpt
-function calc(n,sz,px,py)
-	if px then px=cx+px end
-	if py then py=cy+py end
-	if px == nil then px=cx end
-	if py == nil then py=cy end
-	return {
-		n,
-		px,
-		py,
-		sz,
-		sz,
-	}
-end
-
 story_drw={
 	{108,0,30,30,8,5},
 	{108,6,35,30,8,6},
@@ -830,6 +794,11 @@ function init_lvl(li)
 	--set level to mapped level
 	l=lmap[li]
 	
+	if lmap[li].tp=="cutscene" then
+		tb_init(lmap[li].voice,lmap[li].txt,lmap[li].drw)
+		return
+	end
+	
 	l.won=false
 	l.lost=false
 	--static tiles
@@ -857,13 +826,13 @@ function init_lvl(li)
 	local pstart={0,0}
 	
 	--loop through all map tiles
-	for mx=mxfrom,mxto do
-		for my=myfrom,myto do
+	for mx=mxfrom,mxto-1 do
+		for my=myfrom,myto-1 do
 			local tile=mget(mx,my)
 			local flag=fget(tile)
 			local k=tkey({x=mx,y=my})
 			local pxc=m_to_px(mx,my)
-			
+
 			local pushsps={9,43}
 			
 			local function set_stl()
@@ -955,188 +924,257 @@ function reset_lvl()
 	clr_tbl(p.emotes)
 end
 
-leveldata={
-	{
-		--lvl 1 witch intro
-		rm={0,0,36,35,7,5},
-		goal={31},
-		intro="hey lil guy, what's up?",
+function leveldata()
+	local defaults = {
+		rm={},
+		goal={},
+		intro="",
 		lose="",
-		win="still learning to talk huh?",
+		win="",
 		banter={},
-		txt={
-			{"⬆️➡️⬇️⬅️ to move hand",8},
-			{"hold ❎/x to grab",2},
-			{"drag floating emotes."},
-		}
-	},
-	{	
-		--lvl 2 witch second intro
-		rm={7,0,30,40,9,5},
-		goal={46,30},
-		intro="did the wizard send you?",
-		lose="you're not making any sense.",
-		win="something's wrong with him?",
-		banter={
-			"i'll take that as a yes.",
+		txt={},
+		tp="level"
+	}
+	
+	local witch_levels = {
+		{
+			tp="level",
+			--lvl 1 witch intro
+			rm={0,0,36,35,7,5},
+			goal={31},
+			intro="hey lil guy, what's up?",
+			lose="",
+			win="still learning to talk huh?",
+			banter={},
+			txt={
+				{"⬆️➡️⬇️⬅️ to move hand",8},
+				{"hold ❎/x to grab",2},
+				{"drag floating emotes."},
+			}
 		},
-		txt={
-			{"respond with the right"},
-			{"emotes in the right order"},
-			{"to complete a level."},
-		}
-	},
-	{
-		--lvl 3 witch color merge
-		rm={25,0,40,30,7,7},
-		goal={12},
-		intro="you need more emotional depth.",
-		lose="that doesn't seem right...",
-		win="nice that's happy!",
-		banter={},
-		txt={
-			{"combine two yellow to"},
-			{"make a happy emote."},
+		{	
+			tp="level",
+			--lvl 2 witch second intro
+			rm={7,0,30,40,9,5},
+			goal={46,30},
+			intro="did the wizard send you?",
+			lose="you're not making any sense.",
+			win="something's wrong with him?",
+			banter={
+				"i'll take that as a yes.",
+			},
+			txt={
+				{"respond with the right"},
+				{"emotes in the right order"},
+				{"to complete a level."},
+			}
 		},
-	},
-	{
-		--lvl 4 witch color merge 2
-		rm={32,0,30,34,7,5},
-		goal={13,14},
-		intro="show me angry...",
-		lose="tsk tsk, that's not it.",
-		win="nice work, you learn fast!",
-		banter={"great! now do sad."},
-		txt={
-			{"match two red for angry."},
-			{"match two blue for sad."}
+		{
+			--lvl 3 witch color merge
+			tp="level",
+			rm={25,0,40,30,7,7},
+			goal={12},
+			intro="you need more emotional depth.",
+			lose="that doesn't seem right...",
+			win="nice that's happy!",
+			banter={},
+			txt={
+				{"combine two yellow to"},
+				{"make a happy emote."},
+			},
 		},
-	},
-	{
-		--lvl 6 witch next level
-		rm={50,0,30,34,11,7},
-		goal={46},
-		intro="i've taught you all i know.",
-		lose="",
-		win="go visit my friend, moss.",
-		banter={},
-		txt={}
-	},
-	{
-		--lvl 7 moss intro barrels
-		rm={59,0,30,24,9,9},
-		goal={31},
-		intro="w-who's out there?",
-		lose="",
-		win="oh! a homunculus!?",
-		banter={},
-		txt={
-			{"barrels can be pushed"},
-			{"into empty spaces."}
+		{
+			--lvl 4 witch color merge 2
+			tp="level",
+			rm={32,0,40,34,7,5},
+			goal={13,14},
+			intro="show me angry...",
+			lose="tsk tsk, that's not it.",
+			win="nice work, you learn fast!",
+			banter={"great! now do sad."},
+			txt={
+				{"match two red for angry."},
+				{"match two blue for sad."}
+			},
 		},
-	},
-	{
-		--lvl 8 moss sokoban
-		rm={68,0,36,24,7,8},
-		goal={30,46},
-		intro="s-sorry for being nervous.",
-		lose="what...",
-		win="come with m-me.",
-		banter={"did t-the witch send you?"},
-		txt={
-			{"if you get stuck, pause"},
-			{"and choose reset level."}
+		{
+			tp="cutscene",
+			voice=19,
+			txt={
+[[that's all i can teach
+you lil guy.]],
+[[go see my friend moss now.]],
+[[he'll know more about
+how to cheer up your 
+wizard creator.]]
+			},
+			drw={
+				{93,0,30,30,7,6},
+				{92,6,30,30,6,5},
+				{92,11,40,40,5,3},
+			}
 		},
-	},
-	{
-		--lvl 9 moss adv colors
-		rm={39,0,30,34,11,7},
-		goal={63,98,99},
-		intro="try ∧mixing∧ colors.",
-		lose="that's not it...",
-		win="green is my favorite ♥",
-		banter={
-			"a lovely orange.",
-			"what a nice purple.",
+	}
+	
+	local moss_levels = {
+		{
+			tp="level",
+			--lvl 7 moss intro barrels
+			rm={59,0,30,24,9,9},
+			goal={31},
+			intro="w-who's out there?",
+			lose="",
+			win="oh! a homunculus!?",
+			banter={},
+			txt={
+				{"barrels can be pushed"},
+				{"into empty spaces."}
+			},
 		},
-		txt={
-			{"mixing primary colors"},
-			{"makes secondary colors."}
+		{
+			tp="level",
+			--lvl 8 moss sokoban
+			rm={68,0,36,24,7,8},
+			goal={30,46},
+			intro="s-sorry for being nervous.",
+			lose="what...",
+			win="come with m-me.",
+			banter={"did t-the witch send you?"},
+			txt={
+				{"if you get stuck, pause"},
+				{"and choose reset level."}
+			},
 		},
-	},
-	{
-		--lvl 9 moss garden
-		rm={75,0,36,24,10,10},
-		goal={30,46},
-		intro="this is my garden.",
-		lose="i don't get it...",
-		win="let me t-teach you more.",
-		banter={
-			"it's nice here, right?",
-			"colors are the best.",
+		{
+			tp="level",
+			--lvl 9 moss adv colors
+			rm={39,0,30,34,11,7},
+			goal={63,98,99},
+			intro="try ∧mixing∧ colors.",
+			lose="that's not it...",
+			win="green is my favorite ♥",
+			banter={
+				"a lovely orange.",
+				"what a nice purple.",
+			},
+			txt={
+				{"mixing primary colors"},
+				{"makes secondary colors."}
+			},
 		},
-		txt={
-			{"there's more than just"},
-			{"happy, sad, and angry."}
+		{
+			tp="level",
+			--lvl 9 moss garden
+			rm={75,0,36,24,10,10},
+			goal={30,46},
+			intro="this is my garden.",
+			lose="i don't get it...",
+			win="let me t-teach you more.",
+			banter={
+				"it's nice here, right?",
+				"colors are the best.",
+			},
+			txt={
+				{"there's more than just"},
+				{"happy, sad, and angry."}
+			},
 		},
-	},
-	{
-		--lvl 9 moss garden end
-		rm={85,0,36,24,8,6},
-		goal={31,31,31,31},
-		intro="thanks for visiting...",
-		lose="",
-		win="just match his energy.",
-		banter={
-		"go see the skeleton.",
-		"he's a bit odd..",
-		"but he's a good guy."
+		{
+			tp="level",
+			--lvl 9 moss garden end
+			rm={85,0,36,24,8,6},
+			goal={31,31,31,31},
+			intro="thanks for visiting...",
+			lose="",
+			win="just match his energy.",
+			banter={
+			"go see the skeleton.",
+			"he's a bit odd..",
+			"but he's a good guy."
+			},
+			txt={
+				{"if you get stuck, pause"},
+				{"and choose reset level."}
+			},
 		},
-		txt={
-			{"if you get stuck, pause"},
-			{"and choose reset level."}
+	}
+	
+	local skeleton_levels = {
+		{
+			tp="level",
+			--lvl 9 skeleton doors
+			rm={0,5,26,32,7,8},
+			goal={46},
+			intro="nobodies home!",
+			lose="",
+			win="i was worried you'd get hurt.",
+			banter={},
+			txt={
+				{"to get past traps, push"},
+				{"boxes onto pressure plates."}
+			},
 		},
-	},
-	{
-		--lvl 9 skeleton doors
-		rm={0,5,26,32,7,8},
-		goal={46},
-		intro="nobodies home!",
-		lose="",
-		win="i was worried you'd get hurt.",
-		banter={},
-		txt={
-			{"to get past traps, push"},
-			{"boxes onto pressure plates."}
+	}
+	
+	local mummy_levels = {
+		{
+			tp="level",
+			--lvl 7 mummy severed
+			rm={0,17,30,30,9,5},
+			goal={46},
+			intro="this is going to hurt...",
+			lose="",
+			win="ouch... are you alright?",
+			banter={},
+			txt={
+				{"try activating the trap"},
+				{"while your arm is over it..."},
+			},
 		},
-	},
-	{
-		--lvl 7 mummy severed
-		rm={0,17,30,30,9,5},
-		goal={46},
-		intro="this is going to hurt...",
-		lose="",
-		win="ouch... are you alright?",
-		banter={},
-		txt={
-			{"try activating the trap"},
-			{"while your arm is over it..."},
+		{
+			tp="level",
+			--lvl 8 test
+			rm={0,17,30,30,9,7},
+			goal={12},
+			intro="this is going to hurt...",
+			lose="that's got me weirded out.",
+			win="ouch... are you alright?",
+			banter={},
+			txt={
+				{"try activating the trap"},
+				{"while your arm is over it..."},
+			},
 		},
-	},
-	{
-		--lvl 8 test
-		rm={0,17,30,30,9,7},
-		goal={12},
-		intro="this is going to hurt...",
-		lose="that's got me weirded out.",
-		win="ouch... are you alright?",
-		banter={},
-		txt={
-			{"try activating the trap"},
-			{"while your arm is over it..."},
-		},
-	},
-}
+	}
+	
+	local ghost_levels = {}
+	local bat_levels = {}
+	
+	-- Compile all levels into single sequence
+	local all_levels = {}
+	local idx = 1
+	for _, char_levels in ipairs({witch_levels, moss_levels, skeleton_levels, mummy_levels, ghost_levels, bat_levels}) do
+		for _, level in ipairs(char_levels) do
+			all_levels[idx] = level
+			idx += 1
+		end
+	end
+	
+	-- Apply defaults to any missing keys
+	for _, level in ipairs(all_levels) do
+		for key, default_value in pairs(defaults) do
+			if level[key] == nil then
+				if type(default_value) == "table" then
+					level[key] = {}
+				else
+					level[key] = default_value
+				end
+			end
+		end
+	end
+	
+	return all_levels
+end
 -->8
 --movement handling
 --map flag lookup
@@ -1521,22 +1559,6 @@ function move_emote_to(c,nc)
 	end
 end
 
-function is_box(c)
-	local mtile=mtile_from_px(c)
-	local boxes={43}
-	return count(boxes,mtile.ms)>0
-end
-
-function is_key(c)
-	local mtile=mtile_from_px(c)
-	return mtile.mf==3
-end
-
-function is_emote(c)
-	local mtile=mtile_from_px(c)
-	return mtile.mf==4
-end
-
 function is_rune(c)
 	local mtile=mtile_from_px(c)
 	local runes={
@@ -1559,24 +1581,9 @@ function is_trp(c)
 	return count(trps,mtile.ms)>0
 end
 
-function is_empty(c)
-	local mtile=mtile_from_px(c)
-	return mtile.mf==0
-end
-
-function is_player(c)
-	local mtile=mtile_from_px(c)
-	return mtile.mf==3
-end
-
 function is_trp_dwn(c)
 	local mtile=mtile_from_px(c)
 	return mtile.ms==56
-end
-
-function is_trp_up(c)
-	local mtile=mtile_from_px(c)
-	return mtile.ms==55
 end
 
 __gfx__
@@ -1810,20 +1817,20 @@ __gff__
 0001020202020202020300000404040400000000000006000008000004040404000000000006060000050503030b040400000000000606090a0505050204040405050505000000000000000000000000000000000000000000000000000000000000040400000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000010101010000050500000000000000000000000000000505000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
-292a2a2a3a2a390000292a2a2a39000000292a292a2a2a2a3900292a2a2a3900292a2a2a39000000292a2a2a2a2a2a390000292a2a2a2a2a3900000000000000292a3900292a292aa7a7b6a6a7a7a7a7a7b6000000a6a7a7a7a7a7a7b600000000000000000000000d1800000000300000000032000000000000680045460000
-39543030303039292a3b302e302a2a3900393d393030303039293b2516252a39393e3d252a2a3900393025722573162a39003930303041b32a2a39292a2a292a3b1f2a393901b6b404a5b6b60195b52b3db6000000b601b5b5b4b51fb600000000000000000000444c4d47000000003132300000000000000047004455566800
-3901511f510239390132303b30300239292a293b301e30023939015130510239292a3b011602390039305130513030b02a393901301fb1b20254393954b33930b3b004393930b695b5a4b6b6b4b5a52b3da7a7a7b6b6b5941f2bb52bb60000000000000000000c155c5d152e00003330013130000000446a6b00446465666700
-393030303030392a2a39311e30292a3b392f3901301f3030392a392f722f293b393e3d25292a3b293b303d722fb3b494a43939303030b042292a3b3901b23930b2b1293b39b2a7b6a41fb6b63ea4b5b52ba4b525b6b62bb52b1fb596b600000000000000000000681728690030000031423000310000007a7b00006e6f767700
-2a2a2a2a2a2a3b00002a2a2a2a3b00002a292a39302e304239002a2a2a2a3b002a2a2a2a3b00003901303e723d30a5b5a4392a2a2a2a2a2a3b00003930303bb130293b00393030b6302e39b63e2fb5b5b5b5b516b6b61fb5b5b5b504b60000000000000000000000270e00000000300033000000003300004752537e7f000000
+292a2a2a3a2a390000292a2a2a39000000292a292a2a2a2a3900292a2a2a390000292a2a2a390000292a2a2a2a2a2a390000292a2a2a2a2a3900000000000000292a3900292a292aa7a7b6a6a7a7a7a7a7b6000000a6a7a7a7a7a7a7b600003200001e00000000000d1800000000300000000032000000000000680045460000
+39543030303039292a3b302e302a2a3900393d393030303039293b2516252a39293b3e3d252a3900393025722573162a39003930303041b32a2a39292a2a292a3b1f2a393901b6b404a5b6b60195b52b3db6000000b601b5b5b4b51fb600161f3030442e000000444c4d47000000003132300000000000000047004455566800
+3901301f300239390132303b30300239292a293b301e300239390151305102393901303b1602390039305130513030b02a393901301fb1b20254393954b33930b3b004393930b695b5a4b6b6b4b5a52b3da7a7a7b6b6b5941f2bb52bb62f30013048494200000c155c5d152e00003330013130000000446a6b00446465666700
+393030303030392a2a39311e30292a3b392f3901301f3030392a392f722f293b2a393e3d25293b293b303d722fb3b494a43939303030b042292a3b3901b23930b2b1293b39b2a7b6a41fb6b63ea4b5b52ba4b525b6b62bb52b1fb596b60047303058593d000000681728690030000031423000310000007a7b00006e6f767700
+2a2a2a2a2a2a3b00002a2a2a2a3b00002a292a39302e304239002a2a2a2a3b00002a2a2a2a3b003901303e723d30a5b5a4392a2a2a2a2a2a3b00003930303bb130293b00393030b6302e39b63e2fb5b5b5b5b516b6b61fb5b5b5b504b60025303e30250000000000270e00000000300033000000003300004752537e7f000000
 0000292a390000292a2a2a2a2a2a2a3900393e39303030303900000000000000000000000000002a2a392f723eb2b59504390000000000000000002a39302b3030390000392b2b3030b2b6a7a7b62fb52bb59525b6a7a7a7a7a7a7a7b70000000000000000003333000000000000000000000000000000333360610000693100
-00293b062a3900393030303130320639002a2a2a2a2a2a2a3b000000000000000000000000000000002a2a2a2a2a2a2a2a3b0000000000000000000039303930b3390000393030b33030390000a7a6b7b5a7a6a7b700000000000000000000000000000000306c6d300000000000004546000000003968172670712518003900
-293b1f1f1f2a3939300130313032323900000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a2a2a2a2a3b00002a2a2a3a3a3a3b000000b6b5b595b6000000000000000000000000000000000031307c7d313100000000445556680000293b17280230300427182a39
-292a3b192a2a393930303031323230390000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b62b042bb6000000000000000000000000000000000000303131300000000047909192936900393034033130313005343039
-392b2b092b2b392a2a2a2a2a2a2a2a3b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a7a7a7a7b700000000000000000000000000000000000000333300000000292aa0a1a2a32a392a392726073233062528293b
-392b303001543900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000808182838485868788893930013132303339002a2a2a2a2a2a2a2a2a3b00
-2a39251625293b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a2a2a2a2a2a2a3b008081828384858687888900
-002a2a2a2a3b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000320000000047004849004a4b00683c001f0d0e0f00
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000032333332000000000f5859695a5b0d0001000c52532e00
+00293b062a3900393030303130320639002a2a2a2a2a2a2a3b000000000000000000000000000000002a2a2a2a2a2a2a2a3b0000000000000000000039303930b3390000393030b33030390000a7a6b7b5a7a6a7b700000000000000000000320000000000306c6d300000000000004546000000003968172670712518003900
+293b1f1f1f2a3939300130313032323900000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a2a2a2a2a3b00002a2a2a3a3a3a3b000000b6b5b595b6000000000000000000003330303000000031307c7d313100000000445556680000293b17280230300427182a39
+292a3b192a2a393930303031323230390000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b62b042bb6000000000000000000323001025431000000303131300000000047909192936900393034033130313005343039
+392b2b092b2b392a2a2a2a2a2a2a2a3b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a7a7a7a7b700000000000000000000303030310000000000333300000000292aa0a1a2a32a392a392726073233062528293b
+392b303001543900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030000000808182838485868788893930013132303339002a2a2a2a2a2a2a2a2a3b00
+2a39251625293b000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001113c0400000000000000000000002a2a2a2a2a2a2a3b008081828384858687888900
+002a2a2a2a3b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000101321100a00000000000000000000320000000047004849004a4b00683c001f0d0e0f00
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002014122100000000000000000032333332000000000f5859695a5b0d0001000c52532e00
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000304406076830000005292a2a2a2a2a390440001d1c1e1f00
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000303303525302330044293b25151615262a3900003360613300
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000032324704056932320039023230013232033900323070713031
@@ -1862,6 +1869,7 @@ __sfx__
 001e00000561505615006050000005615006050060500605056150060500605006050561500605006050060505615006050060500605056150060500605006050561500000000000000000000000000000000000
 010400002561300000196131062300603006030060300603006030060300603006030060300603006030060300603006030060300603006030060300603006030060300603006030060300603000030000000000
 010400001061300000196132562300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000500000211004120051100010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100001000010000100
 __music__
 01 000e4344
 06 0f104344
