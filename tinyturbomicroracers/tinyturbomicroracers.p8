@@ -8,7 +8,8 @@ racer = {
 	dy = 0,
 	paint = 9,
 	str = 0,
-	stp = 0
+	stp = 0,
+	gas = false
 }
 
 wallcolor,wincolor = 6,11
@@ -30,10 +31,14 @@ function _update()
 	move(colorcoll())
 	clkupdate()
 	
-	if (btnp(5) and speed <= 32) speed += 1 spr(44,64,64,3,2)
-	if (btnp(4) and speed >= 1) speed -= 1	spr(12,64,64,3,2)
-
-
+	if btn(5) then
+		speed = 4
+		racer.gas = true
+	else 
+		speed = 0 
+		racer.gas = false
+	end 
+	
 	if (racer.x > 127) racer.x = 127
 	if (racer.x < 0) racer.x = 0
 	if (racer.y < 0) racer.y = 0
@@ -107,6 +112,13 @@ function clkupdate()
 end 
 -->8
 function _draw()
+	cls()
+	map(8,0,0,0,3,3)
+	if racer.gas then
+		spr(44,96,96,3,2)
+	else 
+		spr(12,96,96,3,2)
+	end
 	rectfill(racer.x,racer.y,racer.x,racer.y,racer.paint)
 	for i =1, #tail do 
 		if racer.dx == 0 then 
@@ -119,8 +131,8 @@ function _draw()
 	if winner then
 		if racer.stp == 0 then
 			racer.stp = time()
-			print("you won\n"..racer.stp - racer.str,32,64,wincolor)
 		end
+		print("you won\n"..racer.stp - racer.str,32,64,wincolor)
 	end
 end 
 __gfx__
