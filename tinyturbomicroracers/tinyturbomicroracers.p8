@@ -20,6 +20,7 @@ lvlcorr = {
 
 wallcolor,wincolor = 6,11
 speed = 0
+turbo = 4
 clk = 0 
 winner = false
 coll = false
@@ -29,20 +30,21 @@ function _init()
 	cls()
 	map(lvlcorr[racer.lvl].t,0,0,0,lvlcorr[racer.lvl].w,lvlcorr[racer.lvl].h)
 	resetracer()
-	sfx(0)
 end
 -->8
 function _update()
+	local oldspeed = speed 
 	steer()
 	move(colorcoll())
-	clkupdate()
-	
+
 	if btn(5) then
-		speed = 4
+		speed = turbo
 		racer.gas = true
+		poke(0x3200+(68 * 0) + 65,0x0C-speed)
 	else 
-		speed = 0 
+		speed = oldspeed 
 		racer.gas = false
+		poke(0x3200+(68 * 0) + 65,0x0C)
 	end 
 	
 
@@ -50,6 +52,8 @@ function _update()
 	if btnp(4) then 
 		if winner and racer.lvl < #lvlcorr then 
 			racer.lvl += 1
+			speed = turbo
+			turbo += 4
 		end 
 		resetracer()
 	end 
@@ -110,7 +114,7 @@ function colorcoll()
 end 
 
 function steer()
-	if (racer.str == 0	& btn() ) racer.str = time()
+	if (racer.str == 0	& btn() ) racer.str = time() sfx(0)
 	if (btn(0)) racer.dx = -(1) racer.dy = 0 
 	if (btn(1)) racer.dx = 1 racer.dy = 0 
 	if (btn(2)) racer.dx = 0 racer.dy = -(1) 
@@ -128,13 +132,6 @@ function move(x)
 	end 
 end
 
-function clkupdate()
-	if clk < 29 then 
-		clk += 1
-	else
-		clk = 0
-	end 
-end 
 -->8
 function _draw()
 	cls()
