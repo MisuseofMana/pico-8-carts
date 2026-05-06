@@ -6,14 +6,15 @@ racer = {
 	y=1,
 	dx = 1,
 	dy = 0,
-	paint = 9,
-	d = 3
+	paint = 9
 }
 
 wallcolor,wincolor = 6,11
 speed = 0
 clk = 0 
 winner = false
+coll = false
+tail = {}
 
 function _init()
 	cls()
@@ -21,36 +22,72 @@ function _init()
 end
 -->8
 function _update()
-	move()
-	colorcoll()
+	steer()
+	move(colorcoll())
 	clkupdate()
 	
- if (btnp(5) and speed <= 32) speed += 1
+ 	if (btnp(5) and speed <= 32) speed += 1
 	if (btnp(4) and speed >= 1) speed -= 1	
+
+
+	if (racer.x > 127) racer.x = 127
+	if (racer.x < 0) racer.x = 0
+	if (racer.y < 0) racer.y = 0
+	if (racer.y > 127) racer.y = 127
 end
 
 function colorcoll()
- nextpixle =	pget(racer.x + racer.dx, racer.y + racer.dy) 
+	local start = abs(racer.dx)
+	if (racer.dx == 0) start = abs(racer.dy)
 
---	if nextpixle == racer.paint then 
---		rectfill(racer.x,racer.y,racer.x,racer.y,0)
---	end	
+	for i=start,start + speed do
+		if racer.dx == 1 then
+			nextpixle =	pget(racer.x + i, racer.y ) 
+			add(tail,racer.x + i)
+		elseif racer.dx == -1 then 
+			nextpixle =	pget(racer.x - i, racer.y ) 
+			add(tail,racer.x - i)
+		elseif racer.dy == 1 then 
+			nextpixle =	pget(racer.x, racer.y + i ) 
+			add(tail,racer.y + i)
+		elseif racer.dy == -1 then 
+			nextpixle =	pget(racer.x, racer.y - i ) 
+			add(tail,racer.y - i)
+		end
+		
+		if nextpixle == racer.paint then 
+			rectfill(racer.x,racer.y,racer.x,racer.y,0)
+		end	
 
-	if nextpixle == wincolor then 
-		winner = true
+		if nextpixle == wincolor then 
+			winner = true
+		end
+
+		if nextpixle == wallcolor then 
+			deli(tail, #tail)
+			coll = true
+			return i - 1
+		end 		
 	end
-
- if nextpixle != wallcolor then 
-		if (racer.dx != 0)	racer.x += racer.dx + (sgn(racer.dx) * speed) 
-		if (racer.dy != 0) racer.y += racer.dy + (sgn(racer.dy) * speed)
-	end 		
+	return speed
 end 
 
-function move()
+function steer()
 		if (btn(0)) racer.dx = -(1) racer.dy = 0 
 		if (btn(1)) racer.dx = 1 racer.dy = 0 
 		if (btn(2)) racer.dx = 0 racer.dy = -(1) 
 		if (btn(3)) racer.dx = 0 racer.dy = 1
+end
+
+function move(x)
+	if coll then 
+		if (racer.dx != 0) racer.x += (sgn(racer.dx) * x) 
+		if (racer.dy != 0) racer.y += (sgn(racer.dy) * x)
+		coll = false
+	else
+		if (racer.dx != 0) racer.x += racer.dx + (sgn(racer.dx) * x) 
+		if (racer.dy != 0) racer.y += racer.dy + (sgn(racer.dy) * x)
+	end 
 end
 
 function clkupdate()
@@ -62,26 +99,15 @@ function clkupdate()
 end 
 -->8
 function _draw()
---	if racer.dx > 0 then 
---		rectfill(racer.x,racer.y,racer.x+speed,racer.y,racer.paint)
---		racer.x += speed
--- elseif racer.dx < 0 then 
---		rectfill(racer.x,racer.y,racer.x-speed,racer.y,racer.paint)
---		racer.x -= speed
---	elseif racer.dy > 0 then
---		rectfill(racer.x,racer.y,racer.x,racer.y+speed,racer.paint)
---		racer.y += speed
--- elseif racer.dy < 0 then
---		rectfill(racer.x,racer.y,racer.x,racer.y-speed,racer.paint)
-		rectfill(racer.x,racer.y,racer.x,racer.y,racer.paint)
---		racer.y -= speed
---	end
-
- if (racer.x > 127) racer.x = 127
- if (racer.x < 0) racer.x = 0
- if (racer.y < 0) racer.y = 0
- if (racer.y > 127) racer.y = 127
-
+	rectfill(racer.x,racer.y,racer.x,racer.y,racer.paint)
+	for i =1, #tail do 
+		if racer.dx == 0 then 
+			rectfill(racer.x,tail[i],racer.x,tail[i],racer.paint)
+		elseif racer.dy == 0 then 
+			rectfill(tail[i],racer.y,tail[i],racer.y,racer.paint)
+		end
+	end
+	tail = {}
 	if (winner) print("you won",64,64,wincolor)
 end 
 __gfx__
