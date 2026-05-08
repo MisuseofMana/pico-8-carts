@@ -1,47 +1,61 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
+--tiny turbo micro racers ♪
+--by shoe & shoe
+
 --TODO
 ---- Highscores saved to cart data 
 ---- Boot Menu 
 ---- Winner Menu / 3char selection 
 
-racer = {
-	x=1,
-	y=1,
-	dx = 0,
-	dy = 0,
-	paint = 9,
-	str = 0,
-	stp = 0,
-	gas = false,
-	lvl = 1,
-	active = false
-}
-
-lvlcorr = {
-	{t=8,w=3,h=3,anime={}},
-	{t=0,w=8,h=7,anime={
-		{mx=5,my=1,init=64,active=64,frames=2},
-		{mx=6,my=1,init=80,active=80,frames=7}
-	}},
-	{t=11,w=7,h=6,anime={}}
-}
-
-wallcolor,wincolor = 6,11
-speed = 0
-turbo = 4
-clk = 0 
-winner = false
-coll = false
-tail = {}
+--[[
+	sean: added in a level
+	renderer that allows generating
+	levels from a level list of
+	code as an alternative to map
+]]
 
 function _init()
+	why="" --for printing debugs
+	racer = {
+		x=1,
+		y=1,
+		dx = 0,
+		dy = 0,
+		paint = 9,
+		str = 0,
+		stp = 0,
+		gas = false,
+		lvl = 4,
+		active = true
+	}
+
+	lvlcorr = {
+		{lt="map",t=8,w=3,h=3,anime={}},
+		{lt="map",t=0,w=8,h=7,anime={
+			{mx=5,my=1,init=64,active=64,frames=2},
+			{mx=6,my=1,init=80,active=80,frames=7}
+		}},
+		{lt="map",t=11,w=7,h=6,anime={}},
+		{lt="code",l=levels[1], anime={}}
+	}
+
+	wallcolor,wincolor = 6,11
+	speed = 0
+	turbo = 4
+	clk = 0 
+	winner = false
+	coll = false
+	tail = {}
+	
 	cls()
 	map(lvlcorr[racer.lvl].t,0,0,0,lvlcorr[racer.lvl].w,lvlcorr[racer.lvl].h)
 	resetracer()
 end
 -->8
+--update
+
 function _update()
 	local oldspeed = speed 
 	steer()
@@ -141,13 +155,22 @@ function move(x)
 end
 
 -->8
+--draw
+
 anime_timer = time()
 anime_spf = 0.5
 function _draw()
 	cls()
-	if racer.actice then 
-		map(lvlcorr[racer.lvl].t,0,0,0,lvlcorr[racer.lvl].w,lvlcorr[racer.lvl].h)
-
+	if racer.active then 
+		--store target level
+		local tlvl=lvlcorr[racer.lvl]
+		--if level is map type
+		if tlvl.lt=="map" then
+			map(tlvl.t,0,0,0,tlvl.w,tlvl.h)
+		elseif tlvl.lt=="code" then
+			draw_code_level(tlvl.l)
+		end
+		
 		rectfill(racer.x,racer.y,racer.x,racer.y,racer.paint)
 		for i =1, #tail do 
 			if racer.dx == 0 then 
@@ -185,6 +208,7 @@ function _draw()
 				lvlcorr[racer.lvl].anime[i].mx * 8,
 				lvlcorr[racer.lvl].anime[i].my * 8)
 		end
+	print(why,1,1,7)
 	else
 		menu()
 	end
@@ -197,6 +221,91 @@ function menu()
 	for i=1,#theme_timing do 
 		if (theme_timing[i] == stat(50)) print(theme_strings[i],64-(2*#theme_strings[i]),64-3,8)
 	end 
+end
+-->8
+--level definitions
+
+--[[
+defines objects that contain
+a render function and it's
+arguments to create levels
+from rect, line, and rectfill
+]]
+levels={
+	{
+		["rectfill"]={0,0,128,128,6},
+		["line"]={
+			{1,1},
+			{1,126},
+			{3,126},
+			{3,1},
+			{5,1},
+			{5,126},
+			{7,126},
+			{30,126},
+			{30,1},
+			{9,1},
+			{9,124},
+			{50,124},
+			{50,3},
+			{11,3},
+			{11,122}
+			
+		}
+	}
+}
+
+function draw_code_level(l)
+	--[[
+		uses the levels defined in
+		tab 3 to draw to the screen.
+		keys are the function to use
+		and values are unpacked to
+		pass as arguments
+		k is key, v is value
+	]]
+	for k,v in pairs(l) do
+		if k == "rectfill" then
+			rectfill(unpack(l[k]))
+		end
+		if k == "line" then
+			-- # is to get length of k
+			for i=1, #l[k] do
+				--[[
+					run through all lines
+					and create paths for
+					the racer by drawing
+					color 0 to the screen.
+					
+					this is effectively just
+					calling line() and passing
+					in arguments organized in
+					the levels of tab 3
+				]]
+				if (i==#l[k]) break --early exit
+				
+				local s=l[k][i]
+				local e=l[k][i+1]
+				line(
+					s[1],
+					s[2],
+					e[1],
+					e[2],
+					0
+				)
+			end
+			
+			local start=l[k][1]
+			local finish=l[k][#l[k]]
+			--draw start and finish
+			local sx=start[1]
+			local sy=start[2]
+			pset(sx,sy,2)
+			local fx=finish[1]
+			local fy=finish[2]
+			pset(fx,fy,11)
+		end
+	end
 end
 __gfx__
 00000000000000006666666666666666666666660000000000000000000000000000000066666666600000000000000011111110000000000000000000000000
