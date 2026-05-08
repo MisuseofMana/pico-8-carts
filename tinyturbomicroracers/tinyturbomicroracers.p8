@@ -9,13 +9,6 @@ __lua__
 ---- Boot Menu 
 ---- Winner Menu / 3char selection 
 
---[[
-	sean: added in a level
-	renderer that allows generating
-	levels from a level list of
-	code as an alternative to map
-]]
-
 function _init()
 	why="" --for printing debugs
 	racer = {
@@ -27,10 +20,12 @@ function _init()
 		str = 0,
 		stp = 0,
 		gas = false,
-		lvl = 1,
+		lvl = 4,
 		active = true
 	}
 
+	levels=level_dict
+	
 	lvlcorr = {
 		{lt="map",cx=8,cy=3,w=1,h=4,anime={}},
 		{lt="map",cx=8,cy=0,w=3,h=3,anime={}},
@@ -40,7 +35,7 @@ function _init()
 		}},
 		{lt="code",l=levels[1], anime={}}
 	}
-
+	
 	wallcolor,wincolor = 6,11
 	speed = 0
 	turbo = 4
@@ -228,12 +223,19 @@ end
 --level definitions
 
 --[[
+	sean: added in a level
+	renderer that allows generating
+	levels from a level list of
+	code as an alternative to map
+]]
+
+--[[
 defines objects that contain
 a render function and it's
 arguments to create levels
 from rect, line, and rectfill
 ]]
-levels={
+level_dict={
 	{
 		["rectfill"]={0,0,128,128,6},
 		["line"]={
@@ -252,7 +254,6 @@ levels={
 			{50,3},
 			{11,3},
 			{11,122}
-			
 		}
 	}
 }
@@ -284,17 +285,17 @@ function draw_code_level(l)
 					in arguments organized in
 					the levels of tab 3
 				]]
-				if (i==#l[k]) break --early exit
-				
-				local s=l[k][i]
-				local e=l[k][i+1]
-				line(
-					s[1],
-					s[2],
-					e[1],
-					e[2],
-					0
-				)
+				if (i<#l[k]) then
+					local s=l[k][i]
+					local e=l[k][i+1]
+					line(
+						s[1],
+						s[2],
+						e[1],
+						e[2],
+						0
+					)
+				end
 			end
 			
 			local start=l[k][1]
