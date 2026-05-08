@@ -39,6 +39,7 @@ tail = {}
 function _init()
 	cls()
 	resetracer()
+	sfx(0)
 end
 -->8
 function _update()
@@ -123,7 +124,7 @@ function colorcoll()
 end 
 
 function steer()
-	if (racer.str == 0	& btn() ) racer.str = time() sfx(0)
+	if ((btn(0) or btn(1) or btn(2) or btn(3)) and racer.str == 0 ) racer.str = time()
 	if (btn(0)) racer.dx = -(1) racer.dy = 0 
 	if (btn(1)) racer.dx = 1 racer.dy = 0 
 	if (btn(2)) racer.dx = 0 racer.dy = -(1) 
@@ -164,7 +165,7 @@ function _draw()
 			end
 			print("you won\n"..racer.stp - racer.str,32,64,wincolor)
 		else 
-			print(time() - racer.str,93,0)
+			if(racer.str ~= 0) print(time() - racer.str,93,0) 
 			if racer.gas then
 				spr(44,96,96,3,2)
 			else 
